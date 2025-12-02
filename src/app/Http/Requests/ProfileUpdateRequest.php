@@ -25,6 +25,29 @@ class ProfileUpdateRequest extends FormRequest
                 'max:255',
                 Rule::unique(User::class)->ignore($this->user()->id),
             ],
+            'nickname' => [
+                'nullable',
+                'string',
+                'max:50',
+                Rule::unique(User::class, 'nickname')->ignore($this->user()->id),
+            ],
+            'email_hidden' => ['nullable', 'boolean'],
+            'avatar' => ['nullable', 'image', 'max:2048'],
         ];
+    }
+    
+    public function withValidator($validator)
+    {
+        $validator->after(function ($v) {
+            $nicknameFromRequest = $this->input('nickname', $this->user()->nickname);
+            $shouldHide = $this->boolean('email_hidden', $this->user()->email_hidden);
+
+            if ($shouldHide && !$nicknameFromRequest) {
+                $v->errors()->add(
+                    'email_hidden',
+                    'Чтобы скрыть email, сначала задайте уникальный nickname.'
+                );
+            }
+        });
     }
 }

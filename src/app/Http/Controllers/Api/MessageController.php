@@ -122,7 +122,7 @@ class MessageController extends Controller
         $copy->load(['user', 'chat']);
 
         try {
-            broadcast(new MessageSent($targetChat->id, $copy))->toOthers();
+            broadcast(new MessageSent($copy))->toOthers();
         } catch (Throwable $e) {
             report($e);
         }

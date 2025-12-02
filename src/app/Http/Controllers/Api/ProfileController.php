@@ -23,6 +23,15 @@ class ProfileController extends Controller
 
         $u = $r->user();
 
+        $futureNickname = $data['nickname'] ?? $u->nickname;
+        $desiredHide    = array_key_exists('email_hidden', $data)
+            ? (bool) $data['email_hidden']
+            : $u->email_hidden;
+
+        if ($desiredHide && !$futureNickname) {
+            abort(422, 'nickname required to hide email');
+        }
+
         if ($r->hasFile('avatar')) {
             if ($u->avatar_path) {
                 Storage::disk('public')->delete($u->avatar_path);

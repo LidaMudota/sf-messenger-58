@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Chat;
+use App\Models\Contact;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -42,6 +43,11 @@ class ChatController extends Controller
             'participants.*' => ['integer', 'exists:users,id'],
         ]);
 
+        $contactIds = Contact::query()
+        ->where('user_id', $owner->id)
+        ->pluck('contact_user_id')
+        ->all();
+
         $chat = Chat::create([
             'type'             => $data['type'],
             'title'            => $data['title'] ?? null,
@@ -59,12 +65,18 @@ class ChatController extends Controller
 
         // direct: ровно 1 собеседник (берём первого из массива)
         if ($data['type'] === 'direct') {
-            $peerId = $data['participants'][0] ?? null;
+            $peerId = collect($data['participants'] ?? [])->first();
 
             // на всякий случай защитимся от чата "сам с собой"
             if (!$peerId || $peerId === $owner->id) {
                 abort(422, 'peer must be other user');
             }
+
+            abort_unless(
+                in_array($peerId, $contactIds, true),
+                422,
+                'peer must be from contacts'
+            );
 
             $chat->users()->syncWithoutDetaching([
                 $peerId => [
@@ -77,10 +89,19 @@ class ChatController extends Controller
         // group: добавляем всех, если переданы
         if ($data['type'] === 'group' && !empty($data['participants'])) {
             $attach = [];
-            foreach ($data['participants'] as $uid) {
+            $unique = collect($data['participants'])->unique();
+
+            foreach ($unique as $uid) {
                 if ($uid === $owner->id) {
                     continue;
                 }
+                
+                abort_unless(
+                    in_array($uid, $contactIds, true),
+                    422,
+                    'all participants must be from contacts'
+                );
+
                 $attach[$uid] = [
                     'role'  => 'member',
                     'muted' => (bool) $chat->muted_by_default,
@@ -105,6 +126,14 @@ class ChatController extends Controller
         // разрешаем только участникам добавлять
         abort_unless($chat->users()->whereKey($r->user()->id)->exists(), 403);
 
+                // добавляем только тех, кто уже в контактах текущего пользователя
+                $inContacts = Contact::query()
+                ->where('user_id', $r->user()->id)
+                ->where('contact_user_id', $data['user_id'])
+                ->exists();
+    
+            abort_unless($inContacts, 422, 'user must be from contacts');
+    
         $chat->users()->syncWithoutDetaching([
             $data['user_id'] => [
                 'role'  => 'member',
