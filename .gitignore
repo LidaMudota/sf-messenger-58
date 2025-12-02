@@ -1,0 +1,80 @@
+############################
+# ОС / IDE / редакторы
+############################
+.DS_Store
+Thumbs.db
+
+.idea/
+.vscode/
+*.iml
+
+*.swp
+*.swo
+
+############################
+# Node / frontend
+############################
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Vite / bundlers
+dist/
+*.tsbuildinfo
+
+############################
+# Laravel / PHP
+############################
+vendor/
+
+# Env-файлы (оставляем только примеры)
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.local.example
+
+# Кэш PHPUnit
+.phpunit.result.cache
+.phpunit.cache
+
+# Логи и ключи
+storage/*.key
+storage/logs/*
+!storage/logs/.gitignore
+
+# Кэш и сессии
+storage/framework/*
+!storage/framework/.gitignore
+
+# Пользовательские файлы (аватары и т.п. – не нужны в репо)
+storage/app/public/*
+!storage/app/public/.gitignore
+
+# Кэш Laravel
+bootstrap/cache/*.php
+
+# Временный кэш Vite
+.vite/
+
+# Hot reload-файлы
+public/hot
+
+############################
+# Docker / локальные конфиги
+############################
+docker-compose.override.yml
+docker-compose.local.yml
+docker-compose.dev.yml
+
+############################
+# Прочий мусор
+############################
+*.log
+*.tmp
+
+# Vagrant / Homestead (на всякий)
+.vagrant/
+Homestead.yaml
+Homestead.json
