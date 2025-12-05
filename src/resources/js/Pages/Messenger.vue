@@ -2,6 +2,57 @@
     <div class="h-screen flex">
         <!-- Список чатов -->
         <aside class="w-1/3 max-w-xs border-r border-gray-200 overflow-y-auto">
+                    <div class="p-3 border-b space-y-3">
+                <div class="flex items-center gap-3">
+                    <div
+                        class="h-12 w-12 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden"
+                    >
+                        <img
+                            v-if="avatarPreview"
+                            :src="avatarPreview"
+                            alt="avatar"
+                            class="h-full w-full object-cover"
+                        />
+                        <span v-else class="text-gray-500 font-semibold">
+                            {{ (profileUser.nickname || profileUser.name || '?')[0] }}
+                        </span>
+                    </div>
+
+                    <div class="flex-1 min-w-0">
+                        <div class="text-sm font-semibold truncate">
+                            {{ profileUser.nickname || profileUser.name || 'Профиль' }}
+                        </div>
+                        <div class="text-xs text-gray-500 truncate">
+                            Загрузи аватар, чтобы тебя узнавали
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex gap-2">
+                    <button
+                        type="button"
+                        class="flex-1 px-3 py-2 text-xs rounded bg-blue-600 text-white disabled:opacity-60"
+                        @click="triggerAvatarPick"
+                        :disabled="avatarUploading"
+                    >
+                        {{ avatarUploading ? 'Загрузка...' : 'Загрузить аватар' }}
+                    </button>
+                    <Link
+                        :href="route('profile.edit')"
+                        class="px-3 py-2 text-xs rounded border border-gray-300 text-gray-700 hover:bg-gray-100"
+                    >
+                        Профиль
+                    </Link>
+                    <input
+                        ref="avatarInput"
+                        type="file"
+                        class="hidden"
+                        accept="image/*"
+                        @change="handleAvatarChange"
+                    />
+                </div>
+            </div>
+
             <div class="p-2 font-semibold border-b flex justify-between items-center">
                 <span>Мои чаты</span>
                 <button
@@ -141,6 +192,7 @@
 
 <script setup>
 import { ref, onMounted, watch, onBeforeUnmount } from 'vue';
+import { Link, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 
 // ======= состояние =======
