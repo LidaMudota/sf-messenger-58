@@ -30,7 +30,8 @@ const submitForm = () => {
         _method: 'patch',
     }));
 
-    form.post(route('profile.update'), {
+    // раньше было: form.post(route('profile.update'), ...)
+    form.post('/profile', {
         preserveScroll: true,
         forceFormData: true,
         onSuccess: () => form.reset('avatar'),
@@ -126,7 +127,7 @@ const submitForm = () => {
                 <p class="mt-2 text-sm text-gray-800">
                     Your email address is unverified.
                     <Link
-                        :href="route('verification.send')"
+                        href="/email/verification-notification"
                         method="post"
                         as="button"
                         class="rounded-md text-sm text-gray-600 underline hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"

@@ -1,5 +1,8 @@
 {
   "dependencies": {
     "laravel-echo": "^2.2.6"
+  },
+  "devDependencies": {
+    "ziggy-js": "^2.6.0"
   }
 }
