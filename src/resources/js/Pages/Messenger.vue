@@ -123,10 +123,16 @@ const normalizeMessage = (payload) => {
     const createdAt = payload.created_at ? new Date(payload.created_at) : new Date()
     const updatedAt = payload.updated_at ? new Date(payload.updated_at) : createdAt
 
+    const selfAuthored = payload.user_id === viewer.value.id
+    const authorLabel = selfAuthored
+        ? (profile.nickname || profile.email || buildAuthorLabel(payload.user))
+        : buildAuthorLabel(payload.user)
+
     return {
         id: payload.id,
         userId: payload.user_id,
-        author: payload.user_id === viewer.value.id ? 'me' : buildAuthorLabel(payload.user),
+        author: selfAuthored ? 'me' : 'peer',
+        authorLabel,
         text: payload.body,
         time: formatTime(updatedAt),
         edited: Boolean(payload.edited_at) || updatedAt.getTime() !== createdAt.getTime(),
@@ -739,6 +745,12 @@ onBeforeUnmount(() => {
                                             class="max-w-[80%] rounded-lg px-3 py-2 text-sm shadow"
                                             :class="message.author === 'me' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-800'"
                                         >
+                                            <div
+                                                class="mb-1 text-[11px] font-semibold"
+                                                :class="message.author === 'me' ? 'text-indigo-100 text-right' : 'text-indigo-700'"
+                                            >
+                                                {{ message.authorLabel }}
+                                            </div>
                                             <div v-if="message.forwardedFrom" class="text-[10px] uppercase tracking-wide text-gray-200">Переслано из {{ message.forwardedFrom }}</div>
                                             <div>{{ message.text }}</div>
                                             <div class="mt-1 flex items-center justify-end space-x-2 text-[10px] opacity-80">
