@@ -30,6 +30,7 @@ const messageDraft = ref('')
 const editingMessageId = ref(null)
 const forwardMode = reactive({ visible: false, messageId: null, targetId: null })
 const groupComposer = reactive({ visible: false, name: '', members: [] })
+const participantPicker = reactive({ visible: false, chatId: '' })
 const messageMenu = reactive({ open: false, x: 0, y: 0, messageId: null })
 const chatMenu = reactive({ open: false, x: 0, y: 0, chatId: null })
 
@@ -341,6 +342,16 @@ const openGroupComposer = () => {
     groupComposer.members = []
 }
 
+const openParticipantPicker = () => {
+    if (!activeChat.value.isGroup) return
+
+    participantPicker.visible = true
+    participantPicker.chatId = activeChat.value.id
+    searchPool.term = ''
+    searchPool.results = []
+    searchPool.error = ''
+}
+
 const createGroupChat = async () => {
     if (!groupComposer.name.trim() || groupComposer.members.length === 0) return
 
@@ -422,6 +433,26 @@ const startDirectWith = async (userId) => {
     chats.value.unshift(hydrated)
     selectChat(hydrated.id)
     subscribeToChat(hydrated.id)
+}
+
+const isUserInChat = (chatId, userId) => {
+    const chat = findChat(chatId)
+    if (!chat) return false
+
+    return chat.memberIds.includes(userId)
+}
+
+const addParticipantToChat = async (user) => {
+    const chatId = participantPicker.chatId
+    if (!chatId || !user?.id || isUserInChat(chatId, user.id)) return
+
+    await axios.post(`/api/chats/${chatId}/participants`, { user_id: user.id })
+
+    const chat = findChat(chatId)
+    if (!chat) return
+
+    chat.memberIds.push(user.id)
+    chat.participants.push(buildAuthorLabel(user))
 }
 
 const hydrateChats = async () => {
@@ -723,6 +754,13 @@ onBeforeUnmount(() => {
                                 </div>
                                 <div class="flex items-center space-x-2">
                                     <button
+                                        v-if="activeChat.isGroup"
+                                        class="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700"
+                                        @click="openParticipantPicker"
+                                    >
+                                        Добавить участника
+                                    </button>
+                                    <button
                                         class="rounded-full px-3 py-1 text-xs font-semibold"
                                         :class="activeChat.muted ? 'bg-gray-200 text-gray-700' : 'bg-indigo-100 text-indigo-700'"
                                         @click="activeChat.id && toggleMute(activeChat.id)"
@@ -798,14 +836,14 @@ onBeforeUnmount(() => {
         </div>
 
         <div
-        v-if="chatMenu.open"
-        class="fixed z-50 rounded-md bg-white shadow-lg"
-        :style="{ left: `${chatMenu.x}px`, top: `${chatMenu.y}px` }"
-    >
-        <button class="block w-full px-4 py-2 text-left text-sm hover:bg-indigo-50" @click="toggleMute(chatMenu.chatId)">
-            {{ chatMenuMuted ? 'Включить оповещения' : 'Отключить оповещения' }}
-        </button>
-    </div>
+            v-if="chatMenu.open"
+            class="fixed z-50 rounded-md bg-white shadow-lg"
+            :style="{ left: `${chatMenu.x}px`, top: `${chatMenu.y}px` }"
+        >
+            <button class="block w-full px-4 py-2 text-left text-sm hover:bg-indigo-50" @click="toggleMute(chatMenu.chatId)">
+                {{ chatMenuMuted ? 'Включить оповещения' : 'Отключить оповещения' }}
+            </button>
+        </div>
 
         <div
             v-if="forwardMode.visible"
@@ -834,6 +872,74 @@ onBeforeUnmount(() => {
                 <div class="mt-4 flex justify-end space-x-2 text-sm">
                     <button class="rounded px-3 py-1 text-gray-600 hover:bg-gray-100" @click="forwardMode.visible = false">Отмена</button>
                     <button class="rounded bg-indigo-600 px-3 py-1 font-semibold text-white hover:bg-indigo-500" @click="commitForward">Переслать</button>
+                </div>
+            </div>
+        </div>
+
+        <div
+            v-if="participantPicker.visible"
+            class="fixed inset-0 z-40 flex items-center justify-center bg-black/30 px-4"
+        >
+            <div class="w-full max-w-md rounded-lg bg-white p-4 shadow-lg">
+                <h3 class="text-sm font-semibold text-gray-800">Добавить участников в группу</h3>
+                <p class="text-xs text-gray-500">Поиск работает так же, как в разделе контактов.</p>
+
+                <div class="mt-3 space-y-3">
+                    <div class="space-y-2 rounded border p-2">
+                        <div class="flex space-x-2">
+                            <input
+                                v-model="searchPool.term"
+                                @keyup.enter="searchUsers"
+                                class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                placeholder="Email или никнейм"
+                            >
+                            <button
+                                class="rounded bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-500"
+                                @click="searchUsers"
+                            >
+                                {{ searchPool.loading ? 'Поиск...' : 'Искать' }}
+                            </button>
+                        </div>
+                        <p v-if="searchPool.error" class="text-xs text-red-500">{{ searchPool.error }}</p>
+                        <div v-if="searchPool.results.length" class="space-y-2 max-h-64 overflow-y-auto">
+                            <div
+                                v-for="user in searchPool.results"
+                                :key="user.id"
+                                class="flex items-center justify-between rounded border p-2 text-sm"
+                            >
+                                <div>
+                                    <div class="font-semibold text-gray-800">{{ user.nickname || 'Без имени' }}</div>
+                                    <div class="text-xs text-gray-500">{{ user.email || 'Email скрыт' }}</div>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <span
+                                        v-if="!user.in_contacts"
+                                        class="text-[10px] font-semibold text-red-500"
+                                    >
+                                        Нет в контактах
+                                    </span>
+                                    <button
+                                        class="rounded px-3 py-1 text-xs font-semibold"
+                                        :class="isUserInChat(participantPicker.chatId, user.id)
+                                            ? 'bg-gray-200 text-gray-600'
+                                            : 'bg-indigo-100 text-indigo-700'"
+                                        :disabled="!user.in_contacts || isUserInChat(participantPicker.chatId, user.id)"
+                                        @click="addParticipantToChat(user)"
+                                    >
+                                        {{ isUserInChat(participantPicker.chatId, user.id) ? 'Уже в чате' : 'Добавить' }}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <p v-else-if="searchPool.term" class="text-[11px] text-gray-500">Никого не найдено.</p>
+                        <p v-else class="text-[11px] text-gray-500">Введите запрос, чтобы найти пользователя.</p>
+                    </div>
+                </div>
+
+                <div class="mt-4 flex justify-end space-x-2 text-sm">
+                    <button class="rounded px-3 py-1 text-gray-600 hover:bg-gray-100" @click="participantPicker.visible = false">
+                        Закрыть
+                    </button>
                 </div>
             </div>
         </div>
