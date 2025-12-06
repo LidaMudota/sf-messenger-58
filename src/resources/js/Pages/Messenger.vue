@@ -157,11 +157,15 @@ const inflateChat = (raw) => {
         title: resolveChatTitle(raw),
         isGroup: raw.type === 'group',
         participants: (raw.users || []).map((user) => buildAuthorLabel(user)),
+        memberIds: (raw.users || []).map((user) => user.id),
         muted: Boolean(myPivot?.muted ?? raw.muted_by_default),
         unread: 0,
         messages: normalizeMessageList(raw.messages || []),
     }
 }
+
+const findDirectChatWith = (userId) =>
+    chats.value.find((chat) => !chat.isGroup && chat.memberIds.includes(userId))
 
 const attachMessage = (chatId, payload, { selfAuthored = false } = {}) => {
     const chat = findChat(chatId)
@@ -398,6 +402,20 @@ const addContact = async (userId) => {
     searchPool.results = searchPool.results.map((item) =>
         item.id === userId ? { ...item, in_contacts: true } : item,
     )
+}
+
+const startDirectWith = async (userId) => {
+    const existing = findDirectChatWith(userId)
+    if (existing) {
+        selectChat(existing.id)
+        return
+    }
+
+    const response = await axios.post('/api/chats', { type: 'direct', participants: [userId] })
+    const hydrated = inflateChat(response.data)
+    chats.value.unshift(hydrated)
+    selectChat(hydrated.id)
+    subscribeToChat(hydrated.id)
 }
 
 const hydrateChats = async () => {
@@ -646,7 +664,15 @@ onBeforeUnmount(() => {
                                         <div class="text-xs text-gray-500">{{ contact.visibleEmail }}</div>
                                     </div>
                                 </div>
-                                <span class="rounded-full bg-indigo-50 px-2 py-1 text-[10px] font-semibold text-indigo-700">в сети</span>
+                                <div class="flex items-center space-x-2">
+                                    <button
+                                        class="rounded bg-indigo-600 px-3 py-1 text-[10px] font-semibold text-white hover:bg-indigo-500"
+                                        @click="startDirectWith(contact.id)"
+                                    >
+                                        Написать
+                                    </button>
+                                    <span class="rounded-full bg-indigo-50 px-2 py-1 text-[10px] font-semibold text-indigo-700">в сети</span>
+                                </div>
                             </div>
                         </div>
                     </div>

@@ -48,20 +48,7 @@ class ChatController extends Controller
         ->pluck('contact_user_id')
         ->all();
 
-        $chat = Chat::create([
-            'type'             => $data['type'],
-            'title'            => $data['title'] ?? null,
-            'owner_id'         => $owner->id,
-            'muted_by_default' => $data['muted_by_default'] ?? 0,
-        ]);
-
-        // владелец всегда участник
-        $chat->users()->syncWithoutDetaching([
-            $owner->id => [
-                'role'  => 'admin', // было 'owner'
-                'muted' => (bool) $chat->muted_by_default,
-            ],
-        ]);
+        $peerId = null;
 
         // direct: ровно 1 собеседник (берём первого из массива)
         if ($data['type'] === 'direct') {
@@ -78,6 +65,36 @@ class ChatController extends Controller
                 'peer must be from contacts'
             );
 
+            $existing = Chat::query()
+            ->where('type', 'direct')
+            ->whereHas('users', fn ($q) => $q->where('users.id', $owner->id))
+            ->whereHas('users', fn ($q) => $q->where('users.id', $peerId))
+            ->first();
+
+        if ($existing) {
+            return response()->json($existing->load([
+                'messages' => fn ($q) => $q->latest()->limit(10),
+                'users',
+            ]));
+        }
+    }
+
+    $chat = Chat::create([
+        'type'             => $data['type'],
+        'title'            => $data['title'] ?? null,
+        'owner_id'         => $owner->id,
+        'muted_by_default' => $data['muted_by_default'] ?? 0,
+    ]);
+
+    // владелец всегда участник
+    $chat->users()->syncWithoutDetaching([
+        $owner->id => [
+            'role'  => 'admin', // было 'owner'
+            'muted' => (bool) $chat->muted_by_default,
+        ],
+    ]);
+
+    if ($peerId) {
             $chat->users()->syncWithoutDetaching([
                 $peerId => [
                     'role'  => 'member',
