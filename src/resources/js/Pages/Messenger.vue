@@ -485,18 +485,45 @@ const hydrateChats = async () => {
     }
 }
 
-const hydrateMessages = async (chatId) => {
+const hydrateMessages = async (chatId, { trackUnread = false, silent = false } = {}) => {
     if (!chatId) return
-    loading.messages = true
+    const chat = findChat(chatId)
+    if (!chat) return
+
+    const knownMessages = new Set(chat.messages.map((item) => item.id))
+
+    if (!silent) {
+        loading.messages = true
+    }
+
     try {
         const response = await axios.get(`/api/messages/${chatId}`)
         const payload = Array.isArray(response.data) ? response.data : response.data.data ?? []
-        const chat = findChat(chatId)
-        if (!chat) return
+        const normalized = normalizeMessageList(payload)
 
-        chat.messages = normalizeMessageList(payload)
+        chat.messages = normalized
+
+        if (chatId === activeChatId.value) {
+            chat.unread = 0
+            return
+        }
+
+        if (!trackUnread) return
+
+        const freshMessages = normalized.filter((message) => !knownMessages.has(message.id))
+        const nonSelfAuthored = freshMessages.filter((message) => message.userId !== viewer.value.id)
+
+        if (nonSelfAuthored.length === 0) return
+
+        chat.unread += nonSelfAuthored.length
+
+        if (!chat.muted) {
+            playSound()
+        }
     } finally {
-        loading.messages = false
+        if (!silent) {
+            loading.messages = false
+        }
     }
 }
 
@@ -554,9 +581,9 @@ const startPolling = () => {
     if (pollTimer) return
 
     pollTimer = setInterval(() => {
-        if (activeChatId.value) {
-            hydrateMessages(activeChatId.value)
-        }
+        const ids = chats.value.map((chat) => chat.id)
+
+        ids.forEach((chatId) => hydrateMessages(chatId, { trackUnread: true, silent: true }))
     }, 8000)
 }
 
