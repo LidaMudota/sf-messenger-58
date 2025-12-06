@@ -424,6 +424,14 @@ const connectRealtime = () => {
             },
         }),
     })
+    
+    const connection = echo.value.connector.pusher.connection
+
+    connection.bind('connected', stopPolling)
+    connection.bind('unavailable', startPolling)
+    connection.bind('failed', startPolling)
+    connection.bind('disconnected', startPolling)
+    connection.bind('error', startPolling)
 }
 
 const subscribeToChat = (chatId) => {
@@ -438,13 +446,20 @@ const subscribeToChat = (chatId) => {
 }
 
 const startPolling = () => {
-    if (pollTimer || echo.value) return
+    if (pollTimer) return
 
     pollTimer = setInterval(() => {
         if (activeChatId.value) {
             hydrateMessages(activeChatId.value)
         }
     }, 8000)
+}
+
+const stopPolling = () => {
+    if (!pollTimer) return
+
+    clearInterval(pollTimer)
+    pollTimer = null
 }
 
 const stopRealtime = () => {
@@ -455,10 +470,7 @@ const stopRealtime = () => {
         echo.value = null
     }
 
-    if (pollTimer) {
-        clearInterval(pollTimer)
-        pollTimer = null
-    }
+    stopPolling()
 }
 
 const initData = async () => {
