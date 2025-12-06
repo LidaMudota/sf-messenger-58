@@ -41,9 +41,10 @@ let pollTimer = null
 
 const alertSound = typeof Audio !== 'undefined'
     ? new Audio(
-        'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YQgAAAAA//8AAP//AAD//wAA//8AAP//AAD//wAA',
+        'data:audio/wav;base64,UklGRoQAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YQcAAAABAAAAgICA//8A/wD//wD/AP//AP8A//8A/wD//wD/AP//AP8A//8A/wD//wD/AAAA/wAAAP8AAAD/AP8A//8A/wD//wD/AP//AP8A//8A/wD//wD/AP//AP8A//8A/wD//wD/AAAA',
     )
     : null
+let audioContext = typeof AudioContext !== 'undefined' ? new AudioContext() : null
 
 const nowClock = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 const formatTime = (value) => value
@@ -219,9 +220,27 @@ const applyDelete = (chatId, messageId) => {
 }
 
 const playSound = () => {
-    if (!alertSound) return
-    alertSound.currentTime = 0
-    alertSound.play().catch(() => {})
+    if (alertSound) {
+        alertSound.currentTime = 0
+        alertSound.play().catch(() => {})
+        return
+    }
+
+    if (!audioContext) return
+
+    const oscillator = audioContext.createOscillator()
+    const gainNode = audioContext.createGain()
+
+    oscillator.type = 'sine'
+    oscillator.frequency.value = 920
+    gainNode.gain.setValueAtTime(0.15, audioContext.currentTime)
+    gainNode.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.18)
+
+    oscillator.connect(gainNode)
+    gainNode.connect(audioContext.destination)
+
+    oscillator.start()
+    oscillator.stop(audioContext.currentTime + 0.2)
 }
 
 const submitMessage = async () => {
@@ -722,17 +741,17 @@ onBeforeUnmount(() => {
                                 <h3 class="text-sm font-semibold text-gray-700">Чаты</h3>
                             </div>
                             <div class="divide-y max-h-[520px] overflow-y-auto">
-                                <button
-                                    v-for="chat in chats"
-                                    :key="chat.id"
-                                    class="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-indigo-50"
-                                    :class="{ 'bg-indigo-50': chat.id === activeChatId }"
-                                    @click="selectChat(chat.id)"
-                                    @contextmenu="openChatMenu($event, chat.id)"
-                                >
-                                    <div>
-                                        <div class="flex items-center space-x-2">
-                                            <span class="text-sm font-semibold text-gray-800">{{ chat.title }}</span>
+            <button
+                v-for="chat in chats"
+                :key="chat.id"
+                class="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-indigo-50"
+                :class="[{ 'bg-indigo-50': chat.id === activeChatId }, chat.muted ? 'opacity-70' : '']"
+                @click="selectChat(chat.id)"
+                @contextmenu="openChatMenu($event, chat.id)"
+            >
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-sm font-semibold text-gray-800">{{ chat.title }}</span>
                                             <span v-if="chat.isGroup" class="rounded bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">группа</span>
                                             <span v-if="chat.muted" class="text-[10px] text-gray-500">🔕</span>
                                         </div>
