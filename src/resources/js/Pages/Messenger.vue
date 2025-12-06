@@ -1,10 +1,13 @@
 <script setup>
-import { Head, usePage } from '@inertiajs/vue3';
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import axios from 'axios'
+import Echo from 'laravel-echo'
+import Pusher from 'pusher-js'
+import { Head, usePage } from '@inertiajs/vue3'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue'
 
-const page = usePage();
-const viewer = computed(() => page.props.auth?.user ?? { name: 'Гость', email: 'user@example.com' });
+const page = usePage()
+const viewer = computed(() => page.props.auth?.user ?? { name: 'Гость', email: 'user@example.com' })
 
 const profile = reactive({
     nickname: viewer.value.nickname || viewer.value.name || 'Без ника',
@@ -13,29 +16,37 @@ const profile = reactive({
     avatar: viewer.value.avatar_path
         ? `/storage/${viewer.value.avatar_path}`
         : '',
-});
+})
 
-const nicknameError = ref('');
+const nicknameError = ref('')
 
-const contacts = ref([]);
+const contacts = ref([])
 
-const chats = ref([]);
+const chats = ref([])
 
-const activeChatId = ref(chats.value[0]?.id ?? '');
-const messageDraft = ref('');
-const editingMessageId = ref(null);
-const forwardMode = reactive({ visible: false, messageId: null, targetId: null });
-const groupComposer = reactive({ visible: false, name: '', members: [] });
-const messageMenu = reactive({ open: false, x: 0, y: 0, messageId: null });
-const chatMenu = reactive({ open: false, x: 0, y: 0, chatId: null });
+const activeChatId = ref('')
+const messageDraft = ref('')
+const editingMessageId = ref(null)
+const forwardMode = reactive({ visible: false, messageId: null, targetId: null })
+const groupComposer = reactive({ visible: false, name: '', members: [] })
+const messageMenu = reactive({ open: false, x: 0, y: 0, messageId: null })
+const chatMenu = reactive({ open: false, x: 0, y: 0, chatId: null })
+
+const loading = reactive({ contacts: false, chats: false, messages: false, syncing: false })
+const echo = ref(null)
+const channelLinks = new Map()
+let pollTimer = null
 
 const alertSound = typeof Audio !== 'undefined'
     ? new Audio(
         'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YQgAAAAA//8AAP//AAD//wAA//8AAP//AAD//wAA',
     )
-    : null;
+    : null
 
-const nowClock = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+const nowClock = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+const formatTime = (value) => value
+    ? new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : nowClock()
 
 const activeChat = computed(() =>
     chats.value.find((chat) => chat.id === activeChatId.value) ?? {
@@ -47,235 +58,427 @@ const activeChat = computed(() =>
         unread: 0,
         messages: [],
     },
-);
+)
 
-const visibleMessages = computed(() => activeChat.value.messages);
+const visibleMessages = computed(() => activeChat.value.messages)
 
 const availableContacts = computed(() => contacts.value.map((contact) => ({
     ...contact,
     label: contact.nickname || contact.email,
     visibleEmail: contact.hiddenEmail ? (profile.showEmail ? contact.email : 'скрыт') : contact.email,
-})));
+})))
 
 const chatMenuMuted = computed(() => {
-    const chat = findChat(chatMenu.chatId);
-    return chat ? chat.muted : false;
-});
+    const chat = findChat(chatMenu.chatId)
+    return chat ? chat.muted : false
+})
 
 const nicknameTaken = (candidate) =>
-    contacts.value.some((contact) => contact.nickname.toLowerCase() === candidate.toLowerCase());
+    contacts.value.some((contact) => contact.nickname.toLowerCase() === candidate.toLowerCase())
 
-const findChat = (id) => chats.value.find((item) => item.id === id);
+const findChat = (id) => chats.value.find((item) => item.id === id)
 const lastMessageText = (chat) => {
-    const last = chat.messages[chat.messages.length - 1];
-    return last ? last.text : 'Нет сообщений';
-};
+    const last = chat.messages[chat.messages.length - 1]
+    return last ? last.text : 'Нет сообщений'
+}
 const lastMessageTime = (chat) => {
-    const last = chat.messages[chat.messages.length - 1];
-    return last ? last.time : '';
-};
+    const last = chat.messages[chat.messages.length - 1]
+    return last ? last.time : ''
+}
 
 const closeMenus = () => {
-    messageMenu.open = false;
-    chatMenu.open = false;
-};
+    messageMenu.open = false
+    chatMenu.open = false
+}
 
 const selectChat = (id) => {
-    const chat = findChat(id);
-    if (!chat) return;
-    activeChatId.value = id;
-    chat.unread = 0;
-    closeMenus();
-};
+    const chat = findChat(id)
+    if (!chat) return
+    activeChatId.value = id
+    chat.unread = 0
+    closeMenus()
+    hydrateMessages(id)
+    subscribeToChat(id)
+}
 
 const persistProfile = () => {
-    nicknameError.value = '';
-    if (!profile.nickname.trim()) {
-        nicknameError.value = 'Ник не может быть пустым.';
-        return;
+    nicknameError.value = ''
+        if (!profile.nickname.trim()) {
+        nicknameError.value = 'Ник не может быть пустым.'
+        return
     }
     if (nicknameTaken(profile.nickname.trim())) {
-        nicknameError.value = 'Такой ник уже занят контактом.';
-        return;
+        nicknameError.value = 'Такой ник уже занят контактом.'
+        return
     }
-};
+}
 
-const ensureMessageOwner = (message) => message.author === 'me';
+const ensureMessageOwner = (message) => message.author === 'me'
 
-const addMessage = (chat, payload) => {
-    chat.messages.push({
-        id: `${chat.id}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-        time: nowClock(),
-        edited: false,
-        forwardedFrom: payload.forwardedFrom ?? null,
-        author: payload.author,
-        text: payload.text,
-    });
-};
+const buildAuthorLabel = (user) =>
+    user?.nickname || user?.name || user?.email || (user?.id ? `user#${user.id}` : 'Собеседник')
+
+const normalizeMessage = (payload) => {
+    const createdAt = payload.created_at ? new Date(payload.created_at) : new Date()
+    const updatedAt = payload.updated_at ? new Date(payload.updated_at) : createdAt
+
+    return {
+        id: payload.id,
+        userId: payload.user_id,
+        author: payload.user_id === viewer.value.id ? 'me' : buildAuthorLabel(payload.user),
+        text: payload.body,
+        time: formatTime(updatedAt),
+        edited: Boolean(payload.edited_at) || updatedAt.getTime() !== createdAt.getTime(),
+        forwardedFrom: payload.forwarded_from_message_id ? 'переслано' : null,
+        createdAt,
+    }
+}
+
+const normalizeMessageList = (items) =>
+    items
+        .map((item) => normalizeMessage(item))
+        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+
+const resolveChatTitle = (raw) => {
+    if (raw.type === 'group') {
+        return raw.title || 'Групповой чат'
+    }
+
+    const peer = (raw.users || []).find((user) => user.id !== viewer.value.id) || (raw.users || [])[0]
+    return buildAuthorLabel(peer)
+}
+
+const inflateChat = (raw) => {
+    const myPivot = (raw.users || []).find((user) => user.id === viewer.value.id)?.pivot
+
+    return {
+        id: raw.id,
+        title: resolveChatTitle(raw),
+        isGroup: raw.type === 'group',
+        participants: (raw.users || []).map((user) => buildAuthorLabel(user)),
+        muted: Boolean(myPivot?.muted ?? raw.muted_by_default),
+        unread: 0,
+        messages: normalizeMessageList(raw.messages || []),
+    }
+}
+
+const attachMessage = (chatId, payload, { selfAuthored = false } = {}) => {
+    const chat = findChat(chatId)
+    if (!chat) return
+
+    const normalized = normalizeMessage(payload)
+    const idx = chat.messages.findIndex((item) => item.id === normalized.id)
+
+    if (idx === -1) {
+        chat.messages.push(normalized)
+    } else {
+        chat.messages[idx] = { ...chat.messages[idx], ...normalized }
+    }
+
+    chat.messages.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+
+    if (!selfAuthored && chat.id !== activeChatId.value) {
+        chat.unread += 1
+    }
+
+    if (!selfAuthored && !chat.muted) {
+        playSound()
+    }
+}
+
+const applyEdit = (chatId, payload) => {
+    const chat = findChat(chatId)
+    if (!chat) return
+
+    const idx = chat.messages.findIndex((item) => item.id === payload.id)
+    if (idx === -1) return
+
+    chat.messages[idx] = { ...chat.messages[idx], text: payload.body, edited: true, time: formatTime(payload.updated_at) }
+}
+
+const applyDelete = (chatId, messageId) => {
+    const chat = findChat(chatId)
+    if (!chat) return
+
+    const idx = chat.messages.findIndex((item) => item.id === messageId)
+    if (idx === -1) return
+
+    chat.messages.splice(idx, 1)
+}
 
 const playSound = () => {
-    if (!alertSound) return;
-    alertSound.currentTime = 0;
-    alertSound.play().catch(() => {});
-};
+    if (!alertSound) return
+    alertSound.currentTime = 0
+    alertSound.play().catch(() => {})
+}
 
-const scheduleEcho = (chat) => {
-    const phrases = [
-        'Я увидел твоё сообщение.',
-        'Давай обсудим это позже.',
-        'Отмечу это в задаче.',
-    ];
-    const reply = phrases[Math.floor(Math.random() * phrases.length)];
-    setTimeout(() => {
-        addMessage(chat, { author: chat.participants[0], text: reply });
-        if (!chat.muted) {
-            playSound();
-        }
-        if (chat.id !== activeChatId.value) {
-            chat.unread += 1;
-        }
-    }, 900);
-};
+const submitMessage = async () => {
+    const chat = activeChat.value
+    if (!chat) return
+    const trimmed = messageDraft.value.trim()
+    if (!trimmed || loading.syncing) return
 
-const submitMessage = () => {
-    const chat = activeChat.value;
-    if (!chat) return;
-    const trimmed = messageDraft.value.trim();
-    if (!trimmed) return;
+    loading.syncing = true
 
     if (editingMessageId.value) {
-        const target = chat.messages.find((m) => m.id === editingMessageId.value);
+        const target = chat.messages.find((m) => m.id === editingMessageId.value)
         if (target && ensureMessageOwner(target)) {
-            target.text = trimmed;
-            target.edited = true;
+            try {
+                const response = await axios.patch(`/api/messages/${editingMessageId.value}`, { body: trimmed })
+                attachMessage(chat.id, response.data, { selfAuthored: true })
+            } finally {
+                editingMessageId.value = null
+                messageDraft.value = ''
+                loading.syncing = false
+            }
+            return
         }
-        editingMessageId.value = null;
-        messageDraft.value = '';
-        return;
     }
 
-    addMessage(chat, { author: 'me', text: trimmed });
-    messageDraft.value = '';
-    scheduleEcho(chat);
-};
+    try {
+        const response = await axios.post(`/api/messages/${chat.id}`, { body: trimmed })
+        attachMessage(chat.id, response.data, { selfAuthored: true })
+        messageDraft.value = ''
+    } finally {
+        loading.syncing = false
+    }
+}
 
 const openMessageMenu = (event, message) => {
-    if (!ensureMessageOwner(message)) return;
-    event.preventDefault();
-    messageMenu.open = true;
-    messageMenu.x = event.clientX;
-    messageMenu.y = event.clientY;
-    messageMenu.messageId = message.id;
-};
+    if (!ensureMessageOwner(message)) return
+    event.preventDefault()
+    messageMenu.open = true
+    messageMenu.x = event.clientX
+    messageMenu.y = event.clientY
+    messageMenu.messageId = message.id
+}
 
 const editCurrentMessage = () => {
-    const chat = activeChat.value;
-    if (!chat) return;
-    const target = chat.messages.find((m) => m.id === messageMenu.messageId);
+    const chat = activeChat.value
+    if (!chat) return
+    const target = chat.messages.find((m) => m.id === messageMenu.messageId)
     if (target && ensureMessageOwner(target)) {
-        messageDraft.value = target.text;
-        editingMessageId.value = target.id;
+        messageDraft.value = target.text
+        editingMessageId.value = target.id
     }
-    closeMenus();
-};
+    closeMenus()
+}
 
 const deleteCurrentMessage = () => {
-    const chat = activeChat.value;
-    if (!chat) return;
-    const index = chat.messages.findIndex((m) => m.id === messageMenu.messageId);
-    if (index !== -1) {
-        chat.messages.splice(index, 1);
-    }
-    closeMenus();
-};
+    const chat = activeChat.value
+    if (!chat) return
+    const targetId = messageMenu.messageId
+    closeMenus()
+
+    if (!targetId) return
+
+    axios.delete(`/api/messages/${targetId}`).catch(() => {})
+    applyDelete(chat.id, targetId)
+}
 
 const startForward = () => {
-    forwardMode.visible = true;
-    forwardMode.messageId = messageMenu.messageId;
-    forwardMode.targetId = null;
-    closeMenus();
-};
+    forwardMode.visible = true
+    forwardMode.messageId = messageMenu.messageId
+    forwardMode.targetId = null
+    closeMenus()
+}
 
-const commitForward = () => {
-    const sourceChat = activeChat.value;
-    if (!sourceChat) return;
-    const message = sourceChat.messages.find((m) => m.id === forwardMode.messageId);
-    const destination = chats.value.find((chat) => chat.id === forwardMode.targetId);
-    if (!message || !destination) {
-        forwardMode.visible = false;
-        return;
+const commitForward = async () => {
+    const sourceChat = activeChat.value
+    if (!sourceChat) return
+    const destination = chats.value.find((chat) => chat.id === forwardMode.targetId)
+    if (!destination) {
+        forwardMode.visible = false
+        return
     }
-    addMessage(destination, {
-        author: 'me',
-        text: message.text,
-        forwardedFrom: activeChat.value.title,
-    });
-    forwardMode.visible = false;
-};
 
-const toggleMute = (chatId) => {
-    const chat = chats.value.find((item) => item.id === chatId);
-    if (chat) {
-        chat.muted = !chat.muted;
+    try {
+        const response = await axios.post(`/api/messages/${forwardMode.messageId}/forward`, {
+            target_chat_id: destination.id,
+        })
+        attachMessage(destination.id, response.data, { selfAuthored: true })
+    } finally {
+        forwardMode.visible = false
     }
-    closeMenus();
-};
+}
+
+const toggleMute = async (chatId) => {
+    const chat = chats.value.find((item) => item.id === chatId)
+    if (!chat) return
+
+    chat.muted = !chat.muted
+    closeMenus()
+
+    try {
+        await axios.patch(`/api/chats/${chatId}/mute`)
+    } catch (_) {
+        chat.muted = !chat.muted
+    }
+}
 
 const openChatMenu = (event, chatId) => {
-    event.preventDefault();
-    chatMenu.open = true;
-    chatMenu.x = event.clientX;
-    chatMenu.y = event.clientY;
-    chatMenu.chatId = chatId;
-};
+    event.preventDefault()
+    chatMenu.open = true
+    chatMenu.x = event.clientX
+    chatMenu.y = event.clientY
+    chatMenu.chatId = chatId
+}
 
 const openGroupComposer = () => {
-    groupComposer.visible = true;
-    groupComposer.name = '';
-    groupComposer.members = [];
-};
+    groupComposer.visible = true
+    groupComposer.name = ''
+    groupComposer.members = []
+}
 
-const createGroupChat = () => {
-    if (!groupComposer.name.trim() || groupComposer.members.length === 0) return;
-    const id = `group-${Date.now()}`;
-    chats.value.unshift({
-        id,
+const createGroupChat = async () => {
+    if (!groupComposer.name.trim() || groupComposer.members.length === 0) return
+
+    const payload = {
+        type: 'group',
         title: groupComposer.name.trim(),
-        isGroup: true,
         participants: [...groupComposer.members],
-        muted: false,
-        unread: 0,
-        messages: [],
-    });
-    activeChatId.value = id;
-    groupComposer.visible = false;
-};
+    }
 
-const handleGlobalClick = () => closeMenus();
+    const response = await axios.post('/api/chats', payload)
+    const hydrated = inflateChat(response.data)
 
-let pulseTimer = null;
+    chats.value.unshift(hydrated)
+    activeChatId.value = hydrated.id
+    groupComposer.visible = false
+
+    subscribeToChat(hydrated.id)
+}
+
+const handleGlobalClick = () => closeMenus()
+
+const hydrateContacts = async () => {
+    loading.contacts = true
+    try {
+        const response = await axios.get('/api/contacts')
+        contacts.value = response.data.map((item) => {
+            const user = item.contact_user || item.contactUser || item.user
+            return {
+                id: user?.id,
+                nickname: user?.nickname || user?.name || 'Без имени',
+                email: user?.email,
+                hiddenEmail: user?.email_hidden,
+            }
+        })
+    } finally {
+        loading.contacts = false
+    }
+}
+
+const hydrateChats = async () => {
+    loading.chats = true
+    try {
+        const response = await axios.get('/api/chats')
+        chats.value = response.data.map((chat) => inflateChat(chat))
+        activeChatId.value = chats.value[0]?.id ?? ''
+    } finally {
+        loading.chats = false
+    }
+}
+
+const hydrateMessages = async (chatId) => {
+    if (!chatId) return
+    loading.messages = true
+    try {
+        const response = await axios.get(`/api/messages/${chatId}`)
+        const payload = Array.isArray(response.data) ? response.data : response.data.data ?? []
+        const chat = findChat(chatId)
+        if (!chat) return
+
+        chat.messages = normalizeMessageList(payload)
+    } finally {
+        loading.messages = false
+    }
+}
+
+const connectRealtime = () => {
+    if (echo.value || !import.meta.env.VITE_REVERB_APP_KEY) return
+
+    window.Pusher = Pusher
+
+    echo.value = new Echo({
+        broadcaster: 'reverb',
+        key: import.meta.env.VITE_REVERB_APP_KEY,
+        wsHost: import.meta.env.VITE_REVERB_HOST ?? window.location.hostname,
+        wsPort: import.meta.env.VITE_REVERB_PORT ?? 80,
+        wssPort: import.meta.env.VITE_REVERB_PORT ?? 443,
+        forceTLS: (import.meta.env.VITE_REVERB_SCHEME ?? 'https') === 'https',
+        enabledTransports: ['ws', 'wss'],
+        authorizer: (channel) => ({
+            authorize: (socketId, callback) => {
+                axios
+                    .post('/broadcasting/auth', {
+                        socket_id: socketId,
+                        channel_name: channel.name,
+                    }, { withCredentials: true })
+                    .then((response) => {
+                        callback(false, response.data)
+                    })
+                    .catch((error) => {
+                        callback(true, error)
+                    })
+            },
+        }),
+    })
+}
+
+const subscribeToChat = (chatId) => {
+    if (!echo.value || channelLinks.has(chatId)) return
+
+    const channel = echo.value.private(`private-chat.${chatId}`)
+        .listen('MessageSent', (payload) => attachMessage(chatId, payload))
+        .listen('MessageEdited', (payload) => applyEdit(chatId, payload))
+        .listen('MessageDeleted', (payload) => applyDelete(chatId, payload.message_id))
+
+    channelLinks.set(chatId, channel)
+}
+
+const startPolling = () => {
+    if (pollTimer || echo.value) return
+
+    pollTimer = setInterval(() => {
+        if (activeChatId.value) {
+            hydrateMessages(activeChatId.value)
+        }
+    }, 8000)
+}
+
+const stopRealtime = () => {
+    if (echo.value) {
+        channelLinks.forEach((_, chatId) => echo.value.leave(`private-chat.${chatId}`))
+        channelLinks.clear()
+        echo.value.disconnect()
+        echo.value = null
+    }
+
+    if (pollTimer) {
+        clearInterval(pollTimer)
+        pollTimer = null
+    }
+}
+
+const initData = async () => {
+    await Promise.all([hydrateContacts(), hydrateChats()])
+    connectRealtime()
+    chats.value.forEach((chat) => subscribeToChat(chat.id))
+    startPolling()
+}
 
 onMounted(() => {
-    window.addEventListener('click', handleGlobalClick);
-    pulseTimer = setInterval(() => {
-        const target = chats.value.find((chat) => chat.id !== activeChatId.value);
-        if (target) {
-            addMessage(target, { author: target.participants[0], text: 'Авто-сообщение' });
-            if (!target.muted) {
-                playSound();
-            }
-            target.unread += 1;
-        }
-    }, 15000);
-});
+    window.addEventListener('click', handleGlobalClick)
+    initData()
+})
 
 onBeforeUnmount(() => {
-    window.removeEventListener('click', handleGlobalClick);
-    if (pulseTimer) {
-        clearInterval(pulseTimer);
-    }
-});
+    window.removeEventListener('click', handleGlobalClick)
+    stopRealtime()
+})
 </script>
+
 
 <template>
     <Head title="Messenger" />
