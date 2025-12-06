@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\MessageController;
 use App\Http\Controllers\Api\ContactController;
+use App\Http\Controllers\Api\UserLookupController;
 
 /*
 |--------------------------------------------------------------------------
@@ -92,4 +93,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // контакты
     Route::get   ('/contacts',                    [ContactController::class, 'index']);           // список контактов
     Route::post  ('/contacts',                    [ContactController::class, 'store']);           // добавить по nickname/email
+    
+    // поиск пользователей
+    Route::get   ('/users/search',                UserLookupController::class);                   // email/nickname
 });

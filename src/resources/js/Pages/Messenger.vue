@@ -21,6 +21,7 @@ const profile = reactive({
 const nicknameError = ref('')
 
 const contacts = ref([])
+const searchPool = reactive({ term: '', results: [], loading: false, error: '' })
 
 const chats = ref([])
 
@@ -362,11 +363,41 @@ const hydrateContacts = async () => {
                 nickname: user?.nickname || user?.name || 'Без имени',
                 email: user?.email,
                 hiddenEmail: user?.email_hidden,
+                avatar: user?.avatar_path
+                    ? `/storage/${user.avatar_path}`
+                    : `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(user?.nickname || user?.email || 'contact')}`,
             }
         })
     } finally {
         loading.contacts = false
     }
+}
+
+const searchUsers = async () => {
+    searchPool.error = ''
+    const query = searchPool.term.trim()
+    if (!query) {
+        searchPool.results = []
+        return
+    }
+
+    searchPool.loading = true
+    try {
+        const response = await axios.get('/api/users/search', { params: { query } })
+        searchPool.results = response.data
+    } catch (_) {
+        searchPool.error = 'Не удалось выполнить поиск.'
+    } finally {
+        searchPool.loading = false
+    }
+}
+
+const addContact = async (userId) => {
+    await axios.post('/api/contacts', { user_id: userId })
+    await hydrateContacts()
+    searchPool.results = searchPool.results.map((item) =>
+        item.id === userId ? { ...item, in_contacts: true } : item,
+    )
 }
 
 const hydrateChats = async () => {
@@ -564,6 +595,45 @@ onBeforeUnmount(() => {
                             <span class="text-xs text-gray-500">{{ availableContacts.length }} всего</span>
                         </div>
                         <div class="space-y-3">
+                            <div class="space-y-2 rounded border p-2">
+                                <div class="flex space-x-2">
+                                    <input
+                                        v-model="searchPool.term"
+                                        @keyup.enter="searchUsers"
+                                        class="w-full rounded border-gray-300 text-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        placeholder="Email или никнейм"
+                                    >
+                                    <button
+                                        class="rounded bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-500"
+                                        @click="searchUsers"
+                                    >
+                                        {{ searchPool.loading ? 'Поиск...' : 'Искать' }}
+                                    </button>
+                                </div>
+                                <p v-if="searchPool.error" class="text-xs text-red-500">{{ searchPool.error }}</p>
+                                <div v-if="searchPool.results.length" class="space-y-2">
+                                    <div
+                                        v-for="user in searchPool.results"
+                                        :key="user.id"
+                                        class="flex items-center justify-between rounded border p-2 text-sm"
+                                    >
+                                        <div>
+                                            <div class="font-semibold text-gray-800">{{ user.nickname || 'Без имени' }}</div>
+                                            <div class="text-xs text-gray-500">{{ user.email || 'Email скрыт' }}</div>
+                                        </div>
+                                        <button
+                                            class="rounded px-3 py-1 text-xs font-semibold"
+                                            :class="user.in_contacts ? 'bg-gray-200 text-gray-600' : 'bg-indigo-100 text-indigo-700'"
+                                            :disabled="user.in_contacts"
+                                            @click="addContact(user.id)"
+                                        >
+                                            {{ user.in_contacts ? 'В контактах' : 'Добавить' }}
+                                        </button>
+                                    </div>
+                                </div>
+                                <p v-else-if="searchPool.term" class="text-[11px] text-gray-500">Никого не найдено.</p>
+                                <p v-else class="text-[11px] text-gray-500">Введите запрос, чтобы найти пользователя.</p>
+                            </div>
                             <div
                                 v-for="contact in availableContacts"
                                 :key="contact.id"

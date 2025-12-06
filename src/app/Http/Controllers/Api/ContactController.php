@@ -22,22 +22,27 @@ class ContactController extends Controller
     public function store(Request $r)
     {
         $data = $r->validate([
-            'query' => ['required', 'string'],
+            'query'   => ['required_without:user_id', 'string'],
+            'user_id' => ['required_without:query', 'integer', 'exists:users,id'],
         ]);
 
         $me = $r->user();
-        $q = $data['query'];
+        $q = $data['query'] ?? null;
 
-        // Ищем:
-        // 1) по точному nickname
-        // 2) по email, если email_hidden = false
-        $user = User::query()
-            ->where('nickname', $q)
-            ->orWhere(function($sub) use ($q) {
-                $sub->where('email_hidden', false)
-                    ->where('email', $q);
-            })
-            ->firstOrFail();
+        if ($data['user_id'] ?? false) {
+            $user = User::findOrFail($data['user_id']);
+        } else {
+            // Ищем:
+            // 1) по точному nickname
+            // 2) по email, если email_hidden = false
+            $user = User::query()
+                ->where('nickname', $q)
+                ->orWhere(function($sub) use ($q) {
+                    $sub->where('email_hidden', false)
+                        ->where('email', $q);
+                })
+                ->firstOrFail();
+        }
 
         // Нельзя добавить самого себя
         abort_if($user->id === $me->id, 422, 'self not allowed');
