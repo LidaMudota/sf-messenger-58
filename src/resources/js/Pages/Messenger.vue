@@ -45,6 +45,7 @@ const alertSound = typeof Audio !== 'undefined'
     )
     : null
 let audioContext = typeof AudioContext !== 'undefined' ? new AudioContext() : null
+const audioPrimed = ref(false)
 
 const nowClock = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 const formatTime = (value) => value
@@ -219,7 +220,43 @@ const applyDelete = (chatId, messageId) => {
     chat.messages.splice(idx, 1)
 }
 
-const playSound = () => {
+const audioPrimerEvents = ['click', 'touchstart', 'keydown']
+
+const primeAudio = async () => {
+    if (audioPrimed.value) return
+
+    try {
+        if (audioContext?.state === 'suspended') {
+            await audioContext.resume()
+        }
+
+        if (alertSound) {
+            alertSound.currentTime = 0
+            await alertSound.play()
+            alertSound.pause()
+            alertSound.currentTime = 0
+        } else if (audioContext) {
+            const oscillator = audioContext.createOscillator()
+            const gainNode = audioContext.createGain()
+
+            gainNode.gain.value = 0
+            oscillator.connect(gainNode)
+            gainNode.connect(audioContext.destination)
+
+            oscillator.start()
+            oscillator.stop(audioContext.currentTime + 0.01)
+        }
+
+        audioPrimed.value = true
+        audioPrimerEvents.forEach((type) => window.removeEventListener(type, primeAudio, true))
+    } catch (error) {
+        // блокируем ошибку, чтобы не ломать UX при ограничениях браузера
+    }
+}
+
+const playSound = async () => {
+    await primeAudio()
+
     if (alertSound) {
         alertSound.currentTime = 0
         alertSound.play().catch(() => {})
@@ -227,6 +264,14 @@ const playSound = () => {
     }
 
     if (!audioContext) return
+
+    if (audioContext.state === 'suspended') {
+        try {
+            await audioContext.resume()
+        } catch (error) {
+            return
+        }
+    }
 
     const oscillator = audioContext.createOscillator()
     const gainNode = audioContext.createGain()
@@ -614,11 +659,13 @@ const initData = async () => {
 
 onMounted(() => {
     window.addEventListener('click', handleGlobalClick)
+    audioPrimerEvents.forEach((type) => window.addEventListener(type, primeAudio, true))
     initData()
 })
 
 onBeforeUnmount(() => {
     window.removeEventListener('click', handleGlobalClick)
+    audioPrimerEvents.forEach((type) => window.removeEventListener(type, primeAudio, true))
     stopRealtime()
 })
 </script>
