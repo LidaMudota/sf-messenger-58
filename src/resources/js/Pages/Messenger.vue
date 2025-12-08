@@ -25,6 +25,8 @@ const searchPool = reactive({ term: '', results: [], loading: false, error: '' }
 
 const chats = ref([])
 
+const csrfReady = ref(false)
+
 const activeChatId = ref('')
 const messageDraft = ref('')
 const editingMessageId = ref(null)
@@ -290,6 +292,13 @@ const playSound = async () => {
 
     oscillator.start()
     oscillator.stop(audioContext.currentTime + 0.2)
+}
+
+const ensureCsrfCookie = async () => {
+    if (csrfReady.value) return
+
+    await axios.get('/sanctum/csrf-cookie')
+    csrfReady.value = true
 }
 
 const submitMessage = async () => {
@@ -637,6 +646,7 @@ const stopRealtime = () => {
 }
 
 const initData = async () => {
+    await ensureCsrfCookie()
     await Promise.all([hydrateContacts(), hydrateChats()])
     connectRealtime()
     chats.value.forEach((chat) => subscribeToChat(chat.id))

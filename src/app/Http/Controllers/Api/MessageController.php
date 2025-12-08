@@ -32,10 +32,12 @@ class MessageController extends Controller
             'body' => ['required', 'string'],
         ]);
 
+        $body = $this->sanitizeBody($data['body']);
+
         $msg = Message::create([
             'chat_id' => $chat->id,
             'user_id' => $r->user()->id,
-            'body'    => $data['body'],
+            'body'    => $body,
         ]);
 
         $msg->load(['user', 'chat']);
@@ -57,8 +59,10 @@ class MessageController extends Controller
             'body' => ['required', 'string'],
         ]);
 
+        $body = $this->sanitizeBody($data['body']);
+
         $message->update([
-            'body'      => $data['body'],
+            'body'      => $body,
             'edited_at' => now(),
         ]);
 
@@ -108,7 +112,7 @@ class MessageController extends Controller
         $copy = Message::create([
             'chat_id' => $targetChat->id,
             'user_id' => $r->user()->id,
-            'body'    => $message->body,
+            'body'    => $this->sanitizeBody($message->body),
         ]);
 
         $copy->load(['user', 'chat']);
@@ -120,5 +124,13 @@ class MessageController extends Controller
         }
 
         return response()->json($copy, 201);
+    }
+    
+    private function sanitizeBody(string $body): string
+    {
+        $clean = strip_tags($body);
+        $clean = preg_replace('/[\x00-\x1F\x7F]/u', '', $clean);
+
+        return trim($clean);
     }
 }
