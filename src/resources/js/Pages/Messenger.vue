@@ -39,13 +39,18 @@ const echo = ref(null)
 const channelLinks = new Map()
 let pollTimer = null
 
-const alertSound = typeof Audio !== 'undefined'
-    ? new Audio(
-        'data:audio/wav;base64,UklGRoQAAABXQVZFZm10IBAAAAABAAEAIlYAAESsAAACABAAZGF0YQcAAAABAAAAgICA//8A/wD//wD/AP//AP8A//8A/wD//wD/AP//AP8A//8A/wD//wD/AAAA/wAAAP8AAAD/AP8A//8A/wD//wD/AP//AP8A//8A/wD//wD/AP//AP8A//8A/wD//wD/AAAA',
-    )
-    : null
-let audioContext = typeof AudioContext !== 'undefined' ? new AudioContext() : null
+let alertSound = null
+let audioContext = null
 const audioPrimed = ref(false)
+
+if (typeof Audio !== 'undefined') {
+    alertSound = new Audio('/sounds/message.mp3')
+    alertSound.volume = 0.7
+}
+
+if (typeof AudioContext !== 'undefined') {
+    audioContext = new AudioContext()
+}
 
 const nowClock = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 const formatTime = (value) => value
