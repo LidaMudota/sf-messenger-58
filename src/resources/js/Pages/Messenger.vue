@@ -37,7 +37,6 @@ const chatMenu = reactive({ open: false, x: 0, y: 0, chatId: null })
 const loading = reactive({ contacts: false, chats: false, messages: false, syncing: false })
 const echo = ref(null)
 const channelLinks = new Map()
-let pollTimer = null
 
 let alertSound = null
 let audioContext = null
@@ -611,14 +610,7 @@ const connectRealtime = () => {
             },
         }),
     })
-    
-    const connection = echo.value.connector.pusher.connection
 
-    connection.bind('connected', stopPolling)
-    connection.bind('unavailable', startPolling)
-    connection.bind('failed', startPolling)
-    connection.bind('disconnected', startPolling)
-    connection.bind('error', startPolling)
 }
 
 const subscribeToChat = (chatId) => {
@@ -635,23 +627,6 @@ const subscribeToChat = (chatId) => {
     channelLinks.set(chatId, channel)
 }
 
-const startPolling = () => {
-    if (pollTimer) return
-
-    pollTimer = setInterval(() => {
-        const ids = chats.value.map((chat) => chat.id)
-
-        ids.forEach((chatId) => hydrateMessages(chatId, { trackUnread: true, silent: true }))
-    }, 8000)
-}
-
-const stopPolling = () => {
-    if (!pollTimer) return
-
-    clearInterval(pollTimer)
-    pollTimer = null
-}
-
 const stopRealtime = () => {
     if (echo.value) {
         channelLinks.forEach((_, chatId) => echo.value.leave(`private-chat.${chatId}`))
@@ -659,15 +634,12 @@ const stopRealtime = () => {
         echo.value.disconnect()
         echo.value = null
     }
-
-    stopPolling()
 }
 
 const initData = async () => {
     await Promise.all([hydrateContacts(), hydrateChats()])
     connectRealtime()
     chats.value.forEach((chat) => subscribeToChat(chat.id))
-    startPolling()
 }
 
 onMounted(() => {
