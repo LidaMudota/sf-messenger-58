@@ -18,12 +18,8 @@ class MessageSent implements ShouldBroadcast
      */
     public array $message;
 
-    /**
-     * @param \App\Models\Message $message
-     */
     public function __construct(Message $message)
     {
-        // на всякий случай подгружаем автора
         $message->loadMissing('user');
 
         $this->message = [
@@ -33,6 +29,7 @@ class MessageSent implements ShouldBroadcast
             'body'       => $message->body,
             'created_at' => $message->created_at,
             'updated_at' => $message->updated_at,
+            'edited_at'  => $message->edited_at,
             'user'       => $message->user ? [
                 'id'          => $message->user->id,
                 'name'        => $message->user->name,
@@ -44,27 +41,24 @@ class MessageSent implements ShouldBroadcast
     }
 
     /**
-     * Канал: private-chat.{chat_id}
+     * Канал: chat.{chat_id} -> private-chat.{chat_id}
      */
     public function broadcastOn(): array
     {
         return [
-            new PrivateChannel('private-chat.' . $this->message['chat_id']),
+            new PrivateChannel('chat.' . $this->message['chat_id']),
         ];
     }
 
     /**
      * Имя события для Echo:
-     * Echo.private(...).listen('MessageSent', ...)
+     * Echo.private(...).listen('.MessageSent', ...)
      */
     public function broadcastAs(): string
     {
         return 'MessageSent';
     }
 
-    /**
-     * Payload в Echo: e => e.id, e.body, e.user и т.д.
-     */
     public function broadcastWith(): array
     {
         return $this->message;

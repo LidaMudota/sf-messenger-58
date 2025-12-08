@@ -16,12 +16,8 @@ class MessageEdited implements ShouldBroadcast
     public int $chatId;
     public array $message;
 
-    /**
-     * Create a new event instance.
-     */
     public function __construct(Message $message)
     {
-        // подгружаем автора, чтобы на фронте сразу был msg.user
         $message->load('user');
 
         $this->chatId = $message->chat_id;
@@ -46,19 +42,17 @@ class MessageEdited implements ShouldBroadcast
     }
 
     /**
-     * Канал: private-chat.{chatId}
-     *
-     * @return array<int, \Illuminate\Broadcasting\PrivateChannel>
+     * Канал: chat.{chatId} -> private-chat.{chatId}
      */
     public function broadcastOn(): array
     {
         return [
-            new PrivateChannel('private-chat.' . $this->chatId),
+            new PrivateChannel('chat.' . $this->chatId),
         ];
     }
 
     /**
-     * Короткое имя события для Echo.listen('MessageEdited', ...)
+     * Короткое имя события для Echo.listen('.MessageEdited', ...)
      */
     public function broadcastAs(): string
     {

@@ -15,10 +15,6 @@ class MessageDeleted implements ShouldBroadcast
     public int $chatId;
     public int $messageId;
 
-    /**
-     * @param int $chatId
-     * @param int $messageId
-     */
     public function __construct(int $chatId, int $messageId)
     {
         $this->chatId    = $chatId;
@@ -26,28 +22,23 @@ class MessageDeleted implements ShouldBroadcast
     }
 
     /**
-     * Канал для трансляции: private-chat.{chatId}
-     *
-     * @return array<int, PrivateChannel>
+     * Канал: chat.{chatId} -> private-chat.{chatId}
      */
     public function broadcastOn(): array
     {
         return [
-            new PrivateChannel('private-chat.' . $this->chatId),
+            new PrivateChannel('chat.' . $this->chatId),
         ];
     }
 
     /**
-     * Имя события для Echo: Echo.private(...).listen('MessageDeleted', ...)
+     * Имя события для Echo: Echo.private(...).listen('.MessageDeleted', ...)
      */
     public function broadcastAs(): string
     {
         return 'MessageDeleted';
     }
 
-    /**
-     * Payload для фронта
-     */
     public function broadcastWith(): array
     {
         return [

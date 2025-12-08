@@ -582,14 +582,19 @@ const connectRealtime = () => {
 
     window.Pusher = Pusher
 
+    const wsHost = import.meta.env.VITE_REVERB_HOST ?? window.location.hostname
+    const wsPort = Number(import.meta.env.VITE_REVERB_PORT ?? 6001)
+    const wsScheme = import.meta.env.VITE_REVERB_SCHEME ?? 'http'
+    const secure = wsScheme === 'https'
+
     echo.value = new Echo({
         broadcaster: 'reverb',
         key: import.meta.env.VITE_REVERB_APP_KEY,
-        wsHost: import.meta.env.VITE_REVERB_HOST ?? window.location.hostname,
-        wsPort: import.meta.env.VITE_REVERB_PORT ?? 80,
-        wssPort: import.meta.env.VITE_REVERB_PORT ?? 443,
-        forceTLS: (import.meta.env.VITE_REVERB_SCHEME ?? 'https') === 'https',
-        enabledTransports: ['ws', 'wss'],
+        wsHost,
+        wsPort,
+        wssPort: wsPort,
+        forceTLS: secure,
+        enabledTransports: secure ? ['wss'] : ['ws'],
         authorizer: (channel) => ({
             authorize: (socketId, callback) => {
                 axios
@@ -619,10 +624,13 @@ const connectRealtime = () => {
 const subscribeToChat = (chatId) => {
     if (!echo.value || channelLinks.has(chatId)) return
 
-    const channel = echo.value.private(`private-chat.${chatId}`)
-        .listen('MessageSent', (payload) => attachMessage(chatId, payload))
-        .listen('MessageEdited', (payload) => applyEdit(chatId, payload))
-        .listen('MessageDeleted', (payload) => applyDelete(chatId, payload.message_id))
+    const channel = echo.value
+        // базовое имя: chat.{id}
+        .private(`chat.${chatId}`)
+        // при broadcastAs('MessageSent') слушаем '.MessageSent'
+        .listen('.MessageSent', (payload) => attachMessage(chatId, payload))
+        .listen('.MessageEdited', (payload) => applyEdit(chatId, payload))
+        .listen('.MessageDeleted', (payload) => applyDelete(chatId, payload.message_id))
 
     channelLinks.set(chatId, channel)
 }

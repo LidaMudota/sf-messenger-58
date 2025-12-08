@@ -13,7 +13,6 @@ use Throwable;
 
 class MessageController extends Controller
 {
-    // пагинация сообщений по чату
     public function index(Request $r, Chat $chat)
     {
         abort_unless($chat->users()->whereKey($r->user()->id)->exists(), 403);
@@ -25,7 +24,6 @@ class MessageController extends Controller
             ->paginate(20);
     }
 
-    // отправка сообщения + broadcast
     public function store(Request $r, Chat $chat)
     {
         abort_unless($chat->users()->whereKey($r->user()->id)->exists(), 403);
@@ -40,22 +38,17 @@ class MessageController extends Controller
             'body'    => $data['body'],
         ]);
 
-        // сразу подгружаем автора/чат
         $msg->load(['user', 'chat']);
 
-        // рассылаем другим участникам чата: private-chat.{chat_id}
         try {
             broadcast(new MessageSent($msg))->toOthers();
         } catch (Throwable $e) {
-            // если что-то не так с Reverb/WS — пишем в лог, но не роняем запрос
             report($e);
         }
 
-        // фронт ждёт объект сообщения
         return response()->json($msg, 201);
     }
 
-    // редактирование сообщения (только автор) + broadcast
     public function update(Request $r, Message $message)
     {
         abort_unless($message->user_id === $r->user()->id, 403);
@@ -72,7 +65,8 @@ class MessageController extends Controller
         $message->load(['user', 'chat']);
 
         try {
-            broadcast(new MessageEdited($message->chat_id, $message))->toOthers();
+            // БЫЛА ОШИБКА: передавался chat_id и Message
+            broadcast(new MessageEdited($message))->toOthers();
         } catch (Throwable $e) {
             report($e);
         }
@@ -80,7 +74,6 @@ class MessageController extends Controller
         return response()->json($message, 200);
     }
 
-    // удаление (только автор) + broadcast
     public function destroy(Request $r, Message $message)
     {
         abort_unless($message->user_id === $r->user()->id, 403);
@@ -99,7 +92,6 @@ class MessageController extends Controller
         return response()->noContent();
     }
 
-    // пересылка сообщения в другой чат
     public function forward(Request $r, Message $message)
     {
         $data = $r->validate([
