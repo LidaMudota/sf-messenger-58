@@ -60,40 +60,38 @@ Route::post('/token-login', [AuthController::class, 'tokenLogin'])
 Route::post('/logout', [AuthController::class, 'logout'])
     ->middleware('auth:sanctum');
 
-
 /*
 |--------------------------------------------------------------------------
 | ЗАЩИЩЁННЫЕ РОУТЫ (Sanctum)
 |--------------------------------------------------------------------------
 */
 Route::middleware('auth:sanctum')->group(function () {
-
     // текущий пользователь (для проверки email_verified_at и профиля)
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
 
     // чаты
-    Route::get   ('/chats',                       [ChatController::class, 'index']);
-    Route::post  ('/chats',                       [ChatController::class, 'store']);              // direct|group
-    Route::post  ('/chats/{chat}/participants',   [ChatController::class, 'addParticipant']);     // из контактов
-    Route::patch ('/chats/{chat}/mute',           [ChatController::class, 'toggleMute']);         // mute/unmute
+    Route::get('/chats', [ChatController::class, 'index']);
+    Route::post('/chats', [ChatController::class, 'store']); // direct|group
+    Route::post('/chats/{chat}/participants', [ChatController::class, 'addParticipant']); // из контактов
+    Route::patch('/chats/{chat}/mute', [ChatController::class, 'toggleMute']); // mute/unmute
 
     // сообщения (привязаны к чату)
-    Route::get    ('/messages/{chat}',            [MessageController::class, 'index']);           // список с пагинацией
-    Route::post   ('/messages/{chat}',            [MessageController::class, 'store']);           // отправка
-    Route::patch  ('/messages/{message}',         [MessageController::class, 'update']);          // редактирование
-    Route::delete ('/messages/{message}',         [MessageController::class, 'destroy']);         // удаление
-    Route::post   ('/messages/{message}/forward', [MessageController::class, 'forward']);         // переслать
+    Route::get('/messages/{chat}', [MessageController::class, 'index']); // список с пагинацией
+    Route::post('/messages/{chat}', [MessageController::class, 'store']); // отправка
+    Route::patch('/messages/{message}', [MessageController::class, 'update']); // редактирование
+    Route::delete('/messages/{message}', [MessageController::class, 'destroy']); // удаление
+    Route::post('/messages/{message}/forward', [MessageController::class, 'forward']); // переслать
 
     // профиль
-    Route::get   ('/profile/me',                  [ProfileController::class, 'show']);
-    Route::patch ('/profile',                     [ProfileController::class, 'update']);          // nickname, avatar, email_hidden
+    Route::get('/profile/me', [ProfileController::class, 'show']);
+    Route::patch('/profile', [ProfileController::class, 'update']); // nickname, avatar, email_hidden
 
     // контакты
-    Route::get   ('/contacts',                    [ContactController::class, 'index']);           // список контактов
-    Route::post  ('/contacts',                    [ContactController::class, 'store']);           // добавить по nickname/email
+    Route::get('/contacts', [ContactController::class, 'index']); // список контактов
+    Route::post('/contacts', [ContactController::class, 'store']); // добавить по nickname/email
     
     // поиск пользователей
-    Route::get   ('/users/search',                UserLookupController::class);                   // email/nickname
+    Route::get('/users/search', UserLookupController::class); // email/nickname
 });
