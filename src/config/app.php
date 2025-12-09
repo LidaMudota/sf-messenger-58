@@ -30,13 +30,7 @@ return [
         'store'  => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
-    /*
-    |--------------------------------------------------------------------------
-    | Service Providers (добавили регистрацию EventServiceProvider)
-    |--------------------------------------------------------------------------
-    */
     'providers' => [
-        // Базовый набор, безопасно оставить так:
         Illuminate\Auth\AuthServiceProvider::class,
         Illuminate\Broadcasting\BroadcastServiceProvider::class,
         Illuminate\Bus\BusServiceProvider::class,
@@ -58,11 +52,7 @@ return [
         Illuminate\Translation\TranslationServiceProvider::class,
         Illuminate\Validation\ValidationServiceProvider::class,
         Illuminate\View\ViewServiceProvider::class,
-
-        // Консольные команды (ok, даже если не все используешь)
         Illuminate\Foundation\Providers\ConsoleSupportServiceProvider::class,
-
-        // 👉 Наш провайдер событий (нужен для письма верификации)
         App\Providers\EventServiceProvider::class,
     ],
 ];

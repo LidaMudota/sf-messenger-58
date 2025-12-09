@@ -6,9 +6,9 @@ use Illuminate\Database\Eloquent\Relations\Pivot;
 
 class ChatUser extends Pivot
 {
-    protected $table = 'chat_user'; // имя pivot-таблицы
+    protected $table = 'chat_user';
 
-    public $timestamps = true; // миграция создаёт timestamps
+    public $timestamps = true;
 
     protected $fillable = [
         'chat_id',

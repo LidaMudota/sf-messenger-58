@@ -19,7 +19,7 @@ class ChatController extends Controller
             ->whereHas('users', fn ($q) => $q->where('users.id', $user->id))
             ->with([
                 'messages' => fn ($q) => $q->latest()->limit(10),
-                'users', // чтобы была pivot с muted / role
+                'users',
             ])
             ->get();
 
@@ -34,8 +34,6 @@ class ChatController extends Controller
         $data = $r->validate([
             'type'           => ['required', Rule::in(['direct', 'group'])],
             'title'          => ['nullable', 'string', 'max:255'],
-
-            // для direct — participants обязателен, для group — опционален
             'participants'   => [
                 Rule::requiredIf(fn () => $r->input('type') === 'direct'),
                 'array',
@@ -50,11 +48,9 @@ class ChatController extends Controller
 
         $peerId = null;
 
-        // direct: ровно 1 собеседник (берём первого из массива)
         if ($data['type'] === 'direct') {
             $peerId = collect($data['participants'] ?? [])->first();
 
-            // на всякий случай защитимся от чата "сам с собой"
             if (!$peerId || $peerId === $owner->id) {
                 abort(422, 'peer must be other user');
             }
@@ -86,10 +82,9 @@ class ChatController extends Controller
         'muted_by_default' => $data['muted_by_default'] ?? 0,
     ]);
 
-    // владелец всегда участник
     $chat->users()->syncWithoutDetaching([
         $owner->id => [
-            'role'  => 'admin', // было 'owner'
+            'role'  => 'admin',
             'muted' => (bool) $chat->muted_by_default,
         ],
     ]);
@@ -103,7 +98,6 @@ class ChatController extends Controller
             ]);
         }
 
-        // group: добавляем всех, если переданы
         if ($data['type'] === 'group' && !empty($data['participants'])) {
             $attach = [];
             $unique = collect($data['participants'])->unique();
@@ -140,10 +134,8 @@ class ChatController extends Controller
             'user_id' => ['required', 'integer', 'exists:users,id'],
         ]);
 
-        // разрешаем только участникам добавлять
         abort_unless($chat->users()->whereKey($r->user()->id)->exists(), 403);
 
-                // добавляем только тех, кто уже в контактах текущего пользователя
                 $inContacts = Contact::query()
                 ->where('user_id', $r->user()->id)
                 ->where('contact_user_id', $data['user_id'])
@@ -161,18 +153,15 @@ class ChatController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    // mute/unmute для текущего пользователя — переключаем флаг на pivot
     public function toggleMute(Request $r, Chat $chat)
     {
         $userId = $r->user()->id;
 
-        // убедимся, что пользователь в чате
         $participant = $chat->users()->whereKey($userId)->first();
         abort_unless($participant, 403);
 
         $currentMuted = (bool) $participant->pivot->muted;
 
-        // переключаем
         $chat->users()->updateExistingPivot($userId, [
             'muted' => !$currentMuted,
         ]);

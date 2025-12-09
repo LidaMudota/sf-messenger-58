@@ -1,6 +1,3 @@
-# Makefile для sf-messenger-58
-# Под Windows запускай цели через **Git Bash** в корне проекта:  make up, make migrate и т.д.
-
 DC = docker compose
 PHP = $(DC) exec php bash -lc "cd /var/www/src && "
 NODE = $(DC) exec node bash -lc "cd /app && "
@@ -57,7 +54,6 @@ tinker:
 status:
 	$(DC) ps
 
-# --- Frontend (без фреймворков, но npm нужен для pusher-js / vite) ---
 npm:
 	$(NODE) npm i
 

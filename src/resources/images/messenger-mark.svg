@@ -1,0 +1,15 @@
+<svg width="160" height="40" viewBox="0 0 160 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="160" height="40" rx="10" fill="#0EA5E9"/>
+  <rect x="2" y="2" width="156" height="36" rx="8" fill="url(#grad)"/>
+  <path d="M36 12C27.7157 12 21 17.8203 21 25.05C21 27.4019 21.7452 29.5931 23.0274 31.45L20.5 36.5L26.1727 33.7838C29.0344 35.8119 32.7293 37.1 36.73 37.1C45.0143 37.1 51.73 31.2797 51.73 24.05C51.73 16.8203 45.0143 11 36.73 11H36Z" fill="white" fill-opacity="0.95"/>
+  <path d="M36.5 18.5C32.9101 18.5 30 21.2014 30 24.5C30 25.8944 30.5074 27.168 31.375 28.1875L30 31L32.925 29.5125C33.9509 30.1072 35.1755 30.5 36.5 30.5C40.0899 30.5 43 27.7986 43 24.5C43 21.2014 40.0899 18.5 36.5 18.5Z" fill="#0F172A"/>
+  <circle cx="36.5" cy="24.5" r="2" fill="white"/>
+  <text x="66" y="26" fill="white" font-family="'Inter', 'Segoe UI', system-ui, sans-serif" font-size="16" font-weight="700" letter-spacing="0.5" dominant-baseline="middle">Synaptrix</text>
+  <text x="66" y="34" fill="white" font-family="'Inter', 'Segoe UI', system-ui, sans-serif" font-size="10" font-weight="500" opacity="0.8" letter-spacing="0.2">expanding messenger</text>
+  <defs>
+    <linearGradient id="grad" x1="0" y1="0" x2="160" y2="40" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#38BDF8"/>
+      <stop offset="1" stop-color="#6366F1"/>
+    </linearGradient>
+  </defs>
+</svg>

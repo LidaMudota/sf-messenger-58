@@ -41,9 +41,6 @@ class MessageEdited implements ShouldBroadcast
         ];
     }
 
-    /**
-     * Канал: chat.{chatId} -> private-chat.{chatId}
-     */
     public function broadcastOn(): array
     {
         return [
@@ -51,9 +48,6 @@ class MessageEdited implements ShouldBroadcast
         ];
     }
 
-    /**
-     * Короткое имя события для Echo.listen('.MessageEdited', ...)
-     */
     public function broadcastAs(): string
     {
         return 'MessageEdited';

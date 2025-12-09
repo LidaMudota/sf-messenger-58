@@ -21,9 +21,6 @@ class MessageDeleted implements ShouldBroadcast
         $this->messageId = $messageId;
     }
 
-    /**
-     * Канал: chat.{chatId} -> private-chat.{chatId}
-     */
     public function broadcastOn(): array
     {
         return [
@@ -31,9 +28,6 @@ class MessageDeleted implements ShouldBroadcast
         ];
     }
 
-    /**
-     * Имя события для Echo: Echo.private(...).listen('.MessageDeleted', ...)
-     */
     public function broadcastAs(): string
     {
         return 'MessageDeleted';

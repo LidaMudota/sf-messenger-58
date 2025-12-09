@@ -7,20 +7,15 @@ return [
     'servers' => [
 
         'reverb' => [
-            // На каком адресе и порту СЛУШАЕТ сам Reverb-сервер внутри контейнера
             'host' => env('REVERB_SERVER_HOST', '0.0.0.0'),
             'port' => env('REVERB_SERVER_PORT', 6001),
             'path' => env('REVERB_SERVER_PATH', ''),
-
-            // Как к нему будут подключаться клиенты (браузер / Echo)
             'hostname' => env('REVERB_HOST', 'localhost'),
-
             'options' => [
                 'tls' => [],
             ],
 
             'max_request_size' => env('REVERB_MAX_REQUEST_SIZE', 10_000),
-
             'scaling' => [
                 'enabled' => env('REVERB_SCALING_ENABLED', false),
                 'channel' => env('REVERB_SCALING_CHANNEL', 'reverb'),
@@ -51,7 +46,6 @@ return [
                 'secret' => env('REVERB_APP_SECRET'),
                 'app_id' => env('REVERB_APP_ID'),
                 'options' => [
-                    // А сюда как раз идут твои VITE_/REVERB_* для фронта
                     'host' => env('REVERB_HOST', 'localhost'),
                     'port' => env('REVERB_PORT', 6001),
                     'scheme' => env('REVERB_SCHEME', 'http'),

@@ -14,7 +14,7 @@ return new class extends Migration {
             $table->boolean('muted')->default(false);
             $table->timestamps();
 
-            $table->unique(['chat_id','user_id']); // составной уникальный
+            $table->unique(['chat_id','user_id']);
             $table->index(['user_id','chat_id']);
         });
     }

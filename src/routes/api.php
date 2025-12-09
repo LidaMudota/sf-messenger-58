@@ -7,7 +7,7 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\EmailVerificationNotificationController;
-// use App\Http\Controllers\Auth\VerifyEmailController; // ✖ больше не нужен
+
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\NewPasswordController;
 
@@ -19,13 +19,6 @@ use App\Http\Controllers\Api\MessageController;
 use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\UserLookupController;
 
-/*
-|--------------------------------------------------------------------------
-| ПУБЛИЧНЫЕ РОУТЫ (Breeze API)
-|--------------------------------------------------------------------------
-| guest:sanctum — чтобы авторизованные пользователи не дергали эти эндпоинты
-| throttle — базовая защита от брута
-*/
 Route::post('/register', [RegisteredUserController::class, 'store'])
     ->middleware(['guest:sanctum', 'throttle:10,1']);
 
@@ -42,17 +35,6 @@ Route::post('/reset-password', [NewPasswordController::class, 'store'])
 Route::post('/email/verification-notification', [EmailVerificationNotificationController::class, 'store'])
     ->middleware(['auth:sanctum', 'throttle:6,1']);
 
-/*
-|--------------------------------------------------------------------------
-| ВАЖНО: роут подтверждения email из API убрали
-|--------------------------------------------------------------------------
-| Раньше здесь был GET /verify-email/{id}/{hash} с именем verification.verify.
-| Он конфликтовал с web-маршрутом из routes/auth.php и ломал валидацию
-| (Request::user() == null → getKey() on null).
-| Теперь единственный маршрут с именем verification.verify — web-вариант.
-*/
-
-/* Токен-логин (если используешь персональные токены) */
 Route::post('/token-login', [AuthController::class, 'tokenLogin'])
     ->middleware(['guest:sanctum', 'throttle:20,1']);
 
@@ -60,11 +42,6 @@ Route::post('/token-login', [AuthController::class, 'tokenLogin'])
 Route::post('/logout', [AuthController::class, 'logout'])
     ->middleware('auth:sanctum');
 
-/*
-|--------------------------------------------------------------------------
-| ЗАЩИЩЁННЫЕ РОУТЫ (Sanctum)
-|--------------------------------------------------------------------------
-*/
 Route::middleware('auth:sanctum')->group(function () {
     // текущий пользователь (для проверки email_verified_at и профиля)
     Route::get('/user', function (Request $request) {

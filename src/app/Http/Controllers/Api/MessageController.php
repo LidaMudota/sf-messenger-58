@@ -69,7 +69,6 @@ class MessageController extends Controller
         $message->load(['user', 'chat']);
 
         try {
-            // БЫЛА ОШИБКА: передавался chat_id и Message
             broadcast(new MessageEdited($message))->toOthers();
         } catch (Throwable $e) {
             report($e);

@@ -22,9 +22,6 @@ class AuthController extends Controller
             return response()->json(['message' => 'Invalid credentials'], 422);
         }
 
-        // по желанию можно чистить старые токены:
-        // $user->tokens()->delete();
-
         $token = $user->createToken('api')->plainTextToken;
 
         return response()->json([

@@ -12,10 +12,8 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // вызываем наш сидер
         $this->call(DevSeeder::class);
 
-        // создаём тестового пользователя (если хочешь оставить)
         User::firstOrCreate(
             ['email' => 'test@example.com'],
             ['name' => 'Test User', 'password' => bcrypt('123456')]

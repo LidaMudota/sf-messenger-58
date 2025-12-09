@@ -12,7 +12,6 @@ return Application::configure(basePath: dirname(__DIR__))
         channels: __DIR__.'/../routes/channels.php',
         health: '/up',
     )
-    // 👇 регистрируем провайдеры приложения (в т.ч. EventServiceProvider)
     ->withProviders([
         App\Providers\EventServiceProvider::class,
     ])       

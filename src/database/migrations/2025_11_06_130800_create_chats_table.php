@@ -8,10 +8,10 @@ return new class extends Migration {
     public function up(): void {
         Schema::create('chats', function (Blueprint $table) {
             $table->id();
-            $table->enum('type', ['direct','group'])->index();     // индекс по типу
+            $table->enum('type', ['direct','group'])->index();
             $table->string('title')->nullable();
             $table->foreignId('owner_id')->nullable()
-                  ->constrained('users')->nullOnDelete()->index(); // FK users
+                  ->constrained('users')->nullOnDelete()->index();
             $table->boolean('muted_by_default')->default(false);
             $table->timestamps();
         });

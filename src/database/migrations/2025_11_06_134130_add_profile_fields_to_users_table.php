@@ -11,8 +11,8 @@ return new class extends Migration {
             $table->string('avatar_path')->nullable()->after('nickname');
             $table->boolean('email_hidden')->default(false)->after('avatar_path');
 
-            $table->index('email');     // на всякий случай, если нет
-            $table->index('nickname');  // продублирует unique для быстрых запросов
+            $table->index('email');
+            $table->index('nickname');
         });
     }
     public function down(): void {

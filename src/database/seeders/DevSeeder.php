@@ -20,7 +20,6 @@ class DevSeeder extends Seeder
             ['type' => 'direct', 'owner_id' => $user->id]
         );
 
-        // прикрепляем пользователя к чату
         $chat->users()->attach($user->id);
 
         Message::firstOrCreate([

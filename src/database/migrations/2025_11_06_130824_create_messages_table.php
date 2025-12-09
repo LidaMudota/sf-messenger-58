@@ -9,10 +9,10 @@ return new class extends Migration {
         Schema::create('messages', function (Blueprint $table) {
             $table->id();
             $table->foreignId('chat_id')->constrained('chats')->cascadeOnDelete();
-            $table->foreignId('user_id')->constrained('users')->cascadeOnDelete(); // автор
+            $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
             $table->text('body');
             $table->foreignId('forwarded_from_message_id')->nullable()
-                  ->constrained('messages')->nullOnDelete(); // самоссылка
+                  ->constrained('messages')->nullOnDelete();
             $table->timestamp('edited_at')->nullable();
             $table->timestamps();
 

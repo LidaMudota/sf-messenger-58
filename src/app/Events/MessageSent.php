@@ -13,9 +13,6 @@ class MessageSent implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    /**
-     * Данные сообщения, которые уйдут на фронт.
-     */
     public array $message;
 
     public function __construct(Message $message)
@@ -40,9 +37,6 @@ class MessageSent implements ShouldBroadcast
         ];
     }
 
-    /**
-     * Канал: chat.{chat_id} -> private-chat.{chat_id}
-     */
     public function broadcastOn(): array
     {
         return [
@@ -50,10 +44,6 @@ class MessageSent implements ShouldBroadcast
         ];
     }
 
-    /**
-     * Имя события для Echo:
-     * Echo.private(...).listen('.MessageSent', ...)
-     */
     public function broadcastAs(): string
     {
         return 'MessageSent';

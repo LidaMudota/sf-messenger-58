@@ -32,9 +32,6 @@ class ContactController extends Controller
         if ($data['user_id'] ?? false) {
             $user = User::findOrFail($data['user_id']);
         } else {
-            // Ищем:
-            // 1) по точному nickname
-            // 2) по email, если email_hidden = false
             $user = User::query()
                 ->where('nickname', $q)
                 ->orWhere(function($sub) use ($q) {
@@ -44,7 +41,6 @@ class ContactController extends Controller
                 ->firstOrFail();
         }
 
-        // Нельзя добавить самого себя
         abort_if($user->id === $me->id, 422, 'self not allowed');
 
         Contact::firstOrCreate([

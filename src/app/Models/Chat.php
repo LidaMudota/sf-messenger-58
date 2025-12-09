@@ -23,17 +23,11 @@ class Chat extends Model
         'muted_by_default' => 'boolean',
     ];
 
-    /**
-     * Один чат имеет много сообщений.
-     */
     public function messages()
     {
         return $this->hasMany(Message::class);
     }
 
-    /**
-     * Участники чата (pivot: chat_user).
-     */
     public function users()
     {
         return $this->belongsToMany(User::class, 'chat_user', 'chat_id', 'user_id')
