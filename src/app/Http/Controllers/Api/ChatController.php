@@ -5,9 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Chat;
 use App\Models\Contact;
-use App\Models\Message;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class ChatController extends Controller
@@ -19,25 +17,12 @@ class ChatController extends Controller
 
         $chats = Chat::query()
             ->whereHas('users', fn ($q) => $q->where('users.id', $user->id))
-            ->with('users') // чтобы была pivot с muted / role
+            ->with([
+                'messages' => fn ($q) => $q->latest()->limit(10),
+                'users', // чтобы была pivot с muted / role
+            ])
             ->get();
 
-            $chatIds = $chats->pluck('id');
-
-            $messagesByChat = Message::query()
-                ->select('messages.*', DB::raw('ROW_NUMBER() OVER (PARTITION BY chat_id ORDER BY id DESC) AS row_num'))
-                ->whereIn('messages.chat_id', $chatIds)
-                ->with('user')
-                ->having('row_num', '<=', 10)
-                ->orderBy('messages.chat_id')
-                ->orderByDesc('messages.id')
-                ->get()
-                ->groupBy('chat_id');
-    
-            $chats->each(function (Chat $chat) use ($messagesByChat) {
-                $chat->setRelation('messages', $messagesByChat->get($chat->id, collect())->values());
-            });
-    
         return response()->json($chats);
     }
 
@@ -87,31 +72,29 @@ class ChatController extends Controller
             ->first();
 
         if ($existing) {
-            return response()->json(
-                $existing->load([
-                    'messages' => fn ($q) => $q->latest()->limit(10),
-                    'users',
-                ])
-            );
+            return response()->json($existing->load([
+                'messages' => fn ($q) => $q->latest()->limit(10),
+                'users',
+            ]));
         }
-        }
+    }
 
-        $chat = Chat::create([
-            'type'             => $data['type'],
-            'title'            => $data['title'] ?? null,
-            'owner_id'         => $owner->id,
-            'muted_by_default' => $data['muted_by_default'] ?? 0,
-        ]);
+    $chat = Chat::create([
+        'type'             => $data['type'],
+        'title'            => $data['title'] ?? null,
+        'owner_id'         => $owner->id,
+        'muted_by_default' => $data['muted_by_default'] ?? 0,
+    ]);
 
-        // владелец всегда участник
-        $chat->users()->syncWithoutDetaching([
-            $owner->id => [
-                'role'  => 'admin', // было 'owner'
-                'muted' => (bool) $chat->muted_by_default,
-            ],
-        ]);
+    // владелец всегда участник
+    $chat->users()->syncWithoutDetaching([
+        $owner->id => [
+            'role'  => 'admin', // было 'owner'
+            'muted' => (bool) $chat->muted_by_default,
+        ],
+    ]);
 
-        if ($peerId) {
+    if ($peerId) {
             $chat->users()->syncWithoutDetaching([
                 $peerId => [
                     'role'  => 'member',
@@ -160,14 +143,14 @@ class ChatController extends Controller
         // разрешаем только участникам добавлять
         abort_unless($chat->users()->whereKey($r->user()->id)->exists(), 403);
 
-        // добавляем только тех, кто уже в контактах текущего пользователя
-        $inContacts = Contact::query()
-            ->where('user_id', $r->user()->id)
-            ->where('contact_user_id', $data['user_id'])
-            ->exists();
-
-        abort_unless($inContacts, 422, 'user must be from contacts');
-
+                // добавляем только тех, кто уже в контактах текущего пользователя
+                $inContacts = Contact::query()
+                ->where('user_id', $r->user()->id)
+                ->where('contact_user_id', $data['user_id'])
+                ->exists();
+    
+            abort_unless($inContacts, 422, 'user must be from contacts');
+    
         $chat->users()->syncWithoutDetaching([
             $data['user_id'] => [
                 'role'  => 'member',
