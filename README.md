@@ -44,7 +44,7 @@ cd sf-messenger-58
    ```
 
 ## Полезные адреса
-- Приложение Laravel: http://localhost:8080
+- Приложение Laravel: http://localhost:8080/messenger
 - API/Vite (если dev-режим): http://localhost:5173
 - WebSocket Reverb: ws://localhost:6001
 - MailHog UI: http://localhost:8025 (SMTP на `localhost:1025`)
