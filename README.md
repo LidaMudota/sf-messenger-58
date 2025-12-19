@@ -6,41 +6,6 @@
    copy src\.env.example src\.env
    notepad src\.env
    ```
-   Рекомендуемые значения для разработки:
-   ```dotenv
-   APP_NAME="SF Messenger"
-   APP_URL=http://localhost:8080
-
-   DB_CONNECTION=mysql
-   DB_HOST=mysql
-   DB_PORT=3306
-   DB_DATABASE=sf58
-   DB_USERNAME=sf58
-   DB_PASSWORD=sf58pass
-
-   QUEUE_CONNECTION=database
-   CACHE_STORE=database
-   SESSION_DRIVER=database
-
-   BROADCAST_CONNECTION=reverb
-   REVERB_APP_ID=local-app
-   REVERB_APP_KEY=local-key
-   REVERB_APP_SECRET=local-secret
-   REVERB_HOST=localhost
-   REVERB_PORT=6001
-   REVERB_SCHEME=http
-
-   MAIL_MAILER=smtp
-   MAIL_HOST=mailhog
-   MAIL_PORT=1025
-   MAIL_FROM_ADDRESS=no-reply@example.test
-   MAIL_FROM_NAME="SF Messenger"
-
-   VITE_REVERB_APP_KEY=local-key
-   VITE_REVERB_HOST=localhost
-   VITE_REVERB_PORT=6001
-   VITE_REVERB_SCHEME=http
-   ```
 
 2. Запустите контейнеры (Docker Desktop должен быть включён):
    ```powershell
